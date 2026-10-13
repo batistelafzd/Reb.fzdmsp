@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rebanho">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#3d6b2f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>Custo do Rebanho</title>
+<style>
+/* Layout: coluna única para celular, blocos de entrada seguidos do painel de resultados; tudo offline, fontes do sistema */
+:root{
+  --bg:#eef0e8; --surface:#ffffff; --ink:#1f2a1c; --muted:#5d6858; --line:#d6dbcd;
+  --accent:#3d6b2f; --accent-soft:#e1ebd9; --fix:#8a6a3b; --sup:#3d6b2f;
+  --good:#2f7d3a; --warn:#b07a12; --bad:#b23b2b;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-num: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141811; --surface:#1d231a; --ink:#e6eadf; --muted:#a2ab99; --line:#2f382a;
+    --accent:#8cc46f; --accent-soft:#26331f; --fix:#c9a46a; --sup:#8cc46f;
+    --good:#6fcf7c; --warn:#e2b04a; --bad:#ef7a68; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141811; --surface:#1d231a; --ink:#e6eadf; --muted:#a2ab99; --line:#2f382a;
+  --accent:#8cc46f; --accent-soft:#26331f; --fix:#c9a46a; --sup:#8cc46f;
+  --good:#6fcf7c; --warn:#e2b04a; --bad:#ef7a68; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-ui);font-size:16px;line-height:1.45;
+  padding:calc(env(safe-area-inset-top,0px) + 16px) 16px calc(env(safe-area-inset-bottom,0px) + 40px)}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header h1{margin:0;font-size:1.6rem;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:4px 0 0;color:var(--muted);font-size:.9rem}
+.label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;margin:0 0 8px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:.92rem;font-weight:600}
+.field small{color:var(--muted);font-size:.8rem}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row2>*{min-width:0}
+input,select{width:100%;font:inherit;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-variant-numeric:tabular-nums}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{flex:1;font:inherit;font-size:.85rem;padding:8px 6px;border:0;background:var(--bg);color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--surface);font-weight:600}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn{flex:1;min-width:140px;font:inherit;font-size:.92rem;padding:11px;border-radius:8px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-weight:600;cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--surface)}
+.btn:focus-visible,.seg button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+/* resultados */
+.hero{background:var(--accent-soft);border-color:transparent}
+.big{font-family:var(--font-num);font-size:2.1rem;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.big small{font-family:var(--font-ui);font-size:.85rem;font-weight:500;color:var(--muted);letter-spacing:0}
+.bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--line)}
+.bar span{display:block;height:100%}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.lines{display:flex;flex-direction:column}
+.line{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:.95rem}
+.line:last-child{border-bottom:0}
+.line b{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.line.total b{color:var(--accent);font-size:1.05rem}
+.pill{display:inline-block;font-size:.75rem;font-weight:700;padding:2px 9px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.pill.good{color:var(--good)} .pill.warn{color:var(--warn)} .pill.bad{color:var(--bad)}
+.note{font-size:.85rem;color:var(--muted);margin:0}
+.verdict{font-size:.95rem;margin:0}
+
+/* conteúdo da aula */
+details{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+details+details{margin-top:-8px}
+summary{font-weight:700;cursor:pointer;list-style-position:outside}
+details[open] summary{margin-bottom:8px}
+details ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:.93rem}
+details p{margin:0 0 8px;font-size:.93rem}
+code{font-family:var(--font-num);font-size:.85rem;background:var(--bg);padding:1px 5px;border-radius:4px}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+td{padding:5px 0;border-bottom:1px solid var(--line)}
+td:last-child{text-align:right}
+footer{color:var(--muted);font-size:.78rem;text-align:center}
+@media (prefers-reduced-motion:no-preference){.bar span{transition:width .3s ease}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Custo do Rebanho</h1>
+  <p>Diária por cabeça, custo da arroba e lucro. Funciona sem internet e guarda seus números neste aparelho.</p>
+</header>
+
+<!-- RESULTADO NO TOPO -->
+<section>
+  <p class="label">Resultado</p>
+  <div class="card hero">
+    <div>
+      <div class="note">Diária por animal</div>
+      <div class="big" id="outDiaria">R$ 0,00 <small>/cab/dia</small></div>
+    </div>
+    <div class="bar" aria-hidden="true">
+      <span id="barTerra" style="background:var(--fix)"></span>
+      <span id="barMao" style="background:var(--fix);opacity:.75"></span>
+      <span id="barExtras" style="background:var(--fix);opacity:.5"></span>
+      <span id="barSup" style="background:var(--sup)"></span>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--fix)"></i>Custos fixos (terra, mão de obra, extras)</span>
+      <span><i style="background:var(--sup)"></i>Suplementação</span>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="lines">
+    <div class="line"><span>Terra</span><b id="oTerra">–</b></div>
+    <div class="line"><span>Mão de obra <span id="oMaoPill"></span></span><b id="oMao">–</b></div>
+    <div class="line"><span>Extras</span><b id="oExtras">–</b></div>
+    <div class="line"><span>Suplementação</span><b id="oSup">–</b></div>
+    <div class="line total"><span>Diária total</span><b id="oTotal">–</b></div>
+    <div class="line"><span>Custo que fica mesmo sem suplemento</span><b id="oFixo">–</b></div>
+    <div class="line"><span>Custo mensal por animal</span><b id="oMesAnimal">–</b></div>
+    <div class="line"><span>Custo mensal do rebanho</span><b id="oMesRebanho">–</b></div>
+  </div>
+</section>
+
+<section class="card" id="prodCard">
+  <p class="label" style="margin:0">Produção e lucro</p>
+  <div class="lines" id="prodLines"></div>
+  <p class="verdict" id="verdict"></p>
+</section>
+
+<!-- ENTRADAS -->
+<section>
+  <p class="label">1 · Rebanho</p>
+  <div class="card">
+    <div class="row2">
+      <div class="field"><label for="animais">Nº de animais</label><input id="animais" inputmode="numeric" autocomplete="off"></div>
+      <div class="field"><label for="dias">Dias no mês</label><input id="dias" inputmode="numeric" autocomplete="off"></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="label">2 · Custos fixos</p>
+  <div class="card">
+    <div class="field">
+      <label for="terra">Terra / arrendamento</label>
+      <div class="seg" role="group" aria-label="Forma de informar a terra">
+        <button type="button" id="terraTotal" aria-pressed="true">Total por mês</button>
+        <button type="button" id="terraCab" aria-pressed="false">Por cabeça/mês</button>
+      </div>
+      <input id="terra" inputmode="decimal" autocomplete="off">
+      <small>Terra própria também custa: use o valor que você receberia arrendando.</small>
+    </div>
+    <div class="field">
+      <label for="mao">Mão de obra (total por mês, R$)</label>
+      <input id="mao" inputmode="decimal" autocomplete="off">
+      <small>Some salários e encargos de quem cuida do gado.</small>
+    </div>
+    <div class="field">
+      <label for="extras">Extras (total por mês, R$)</label>
+      <input id="extras" inputmode="decimal" autocomplete="off">
+      <small>Combustível, energia, manutenção leve e medicamentos.</small>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="label">3 · Suplementação</p>
+  <div class="card">
+    <div class="row2">
+      <div class="field"><label for="peso">Peso médio (kg)</label><input id="peso" inputmode="decimal" autocomplete="off"></div>
+      <div class="field"><label for="consumo">Consumo (% do PV)</label><input id="consumo" inputmode="decimal" autocomplete="off"></div>
+    </div>
+    <div class="field"><label for="precoSup">Preço do suplemento (R$/kg)</label><input id="precoSup" inputmode="decimal" autocomplete="off"></div>
+  </div>
+</section>
+
+<section>
+  <p class="label">4 · Desempenho e venda</p>
+  <div class="card">
+    <div class="row2">
+      <div class="field"><label for="gmd">GMD (kg/dia)</label><input id="gmd" inputmode="decimal" autocomplete="off"></div>
+      <div class="field"><label for="permanencia">Dias na fazenda</label><input id="permanencia" inputmode="numeric" autocomplete="off"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="kgArroba">Kg vivo por @</label><input id="kgArroba" inputmode="decimal" autocomplete="off"><small>Padrão 30 (15 kg carcaça a 50%).</small></div>
+      <div class="field"><label for="precoArroba">Preço da @ (R$)</label><input id="precoArroba" inputmode="decimal" autocomplete="off"><small>Valor que você recebe na venda.</small></div>
+    </div>
+  </div>
+</section>
+
+<div class="actions">
+  <button type="button" class="btn" id="btnExemplo">Carregar exemplo da aula</button>
+  <button type="button" class="btn" id="btnLimpar">Zerar campos</button>
+</div>
+<p class="note" id="aviso" hidden></p>
+
+<!-- CONHECIMENTO -->
+<section>
+  <p class="label">O que aprendi</p>
+  <details open>
+    <summary>Aula 1 · Custo da diária do boi</summary>
+    <ul>
+      <li><strong>A diária tem 4 partes:</strong> terra, mão de obra, extras e suplementação. As três primeiras você paga mesmo que o boi não engorde.</li>
+      <li><strong>Terra própria tem custo de oportunidade:</strong> é o arrendamento que você deixa de receber.</li>
+      <li><strong>Arrendar por área é melhor que por cabeça</strong> quando dá para subir a lotação, porque o mesmo custo é dividido por mais animais. Só vale se o pasto aguentar.</li>
+      <li><strong>Mão de obra se melhora com treino e manejo,</strong> para cada pessoa cuidar de mais animais, e não só cortando gente.</li>
+      <li><strong>Não corte suplemento olhando só o preço.</strong> Se o boi ganha menos, fica mais tempo na fazenda pagando os custos fixos.</li>
+      <li><strong>O número que decide é o custo da arroba produzida</strong>: relação entre gasto, tempo de permanência e ganho de peso.</li>
+    </ul>
+  </details>
+  <details>
+    <summary>Referência de mão de obra (do curso)</summary>
+    <table>
+      <tr><td>Abaixo de R$ 0,30/cab/dia</td><td><span class="pill good">Excelente</span></td></tr>
+      <tr><td>R$ 0,30 a 0,40</td><td><span class="pill good">Bom</span></td></tr>
+      <tr><td>R$ 0,40 a 0,50</td><td><span class="pill warn">Aceitável</span></td></tr>
+      <tr><td>Acima de R$ 0,50</td><td><span class="pill bad">Atenção</span></td></tr>
+    </table>
+    <p class="note" style="margin-top:8px">Referência do apresentador, não regra fixa. Ajuste à sua região e sistema.</p>
+  </details>
+  <details>
+    <summary>Fórmulas</summary>
+    <ul>
+      <li>Terra/dia = arrendamento mensal ÷ animais ÷ dias</li>
+      <li>Mão de obra/dia = folha mensal ÷ animais ÷ dias</li>
+      <li>Suplemento/dia = peso × (consumo % ÷ 100) × preço do kg</li>
+      <li>Custo do kg ganho = diária ÷ GMD</li>
+      <li>Custo da @ produzida = custo do kg ganho × kg por @</li>
+      <li>Lucro por animal = (@ produzidas × preço da @) − diária × dias</li>
+    </ul>
+  </details>
+</section>
+
+<footer>Os dados ficam só neste aparelho. Se apagar os dados do navegador/app, eles somem.</footer>
+</div>
+
+<script>
+(function(){
+  var CAMPOS=['animais','dias','terra','mao','extras','peso','consumo','precoSup','gmd','permanencia','kgArroba','precoArroba'];
+  var CHAVE='custoRebanho_v1';
+  var terraModo='total';
+
+  var EXEMPLO={animais:'300',dias:'30',terra:'30',mao:'2000',extras:'4500',peso:'300',consumo:'0,3',precoSup:'1,71',gmd:'0,6',permanencia:'150',kgArroba:'30',precoArroba:'300',terraModo:'cabeca'};
+
+  function $(id){return document.getElementById(id);}
+  function num(id){
+    var t=String($(id).value||'').trim().replace(/\s/g,'');
+    if(t.indexOf(',')>-1){t=t.replace(/\./g,'').replace(',','.');}
+    var v=parseFloat(t);return isFinite(v)?v:0;
+  }
+  function brl(v){return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function fmt(v,d){return v.toLocaleString('pt-BR',{maximumFractionDigits:d});}
+  function linha(nome,valor,cls){return '<div class="line'+(cls?' '+cls:'')+'"><span>'+nome+'</span><b>'+valor+'</b></div>';}
+
+  function setModo(m){
+    terraModo=m;
+    $('terraTotal').setAttribute('aria-pressed',m==='total');
+    $('terraCab').setAttribute('aria-pressed',m==='cabeca');
+    $('terra').placeholder=m==='total'?'Ex.: 9000 (R$ por mês)':'Ex.: 30 (R$ por cabeça/mês)';
+  }
+
+  function calcular(){
+    var animais=num('animais'), dias=num('dias')||30;
+    var terraIn=num('terra'), mao=num('mao'), extras=num('extras');
+    var peso=num('peso'), consumo=num('consumo')/100, precoSup=num('precoSup');
+    var gmd=num('gmd'), perm=num('permanencia'), kgA=num('kgArroba')||30, precoA=num('precoArroba');
+
+    var terraDia=0,maoDia=0,extrasDia=0;
+    if(terraModo==='cabeca'){terraDia=terraIn/dias;}
+    if(animais>0){
+      if(terraModo==='total'){terraDia=terraIn/animais/dias;}
+      maoDia=mao/animais/dias;
+      extrasDia=extras/animais/dias;
+    }
+    var supDia=peso*consumo*precoSup;
+    var diaria=terraDia+maoDia+extrasDia+supDia;
+    var fixo=diaria-supDia;
+
+    $('outDiaria').innerHTML=brl(diaria)+' <small>/cab/dia</small>';
+    var pct=function(x){return diaria>0?(x/diaria*100)+'%':'0%';};
+    $('barTerra').style.width=pct(terraDia);$('barMao').style.width=pct(maoDia);
+    $('barExtras').style.width=pct(extrasDia);$('barSup').style.width=pct(supDia);
+
+    $('oTerra').textContent=brl(terraDia);
+    $('oMao').textContent=brl(maoDia);
+    $('oExtras').textContent=brl(extrasDia);
+    $('oSup').textContent=brl(supDia);
+    $('oTotal').textContent=brl(diaria);
+    $('oFixo').textContent=brl(fixo);
+    $('oMesAnimal').textContent=brl(diaria*dias);
+    $('oMesRebanho').textContent=animais>0?brl(diaria*dias*animais):'Informe os animais';
+
+    var pill='';
+    if(animais>0&&mao>0){
+      var r=Math.round(maoDia*100)/100;
+      if(r<0.30)pill='<span class="pill good">Excelente</span>';
+      else if(r<=0.40)pill='<span class="pill good">Bom</span>';
+      else if(r<=0.50)pill='<span class="pill warn">Aceitável</span>';
+      else pill='<span class="pill bad">Atenção</span>';
+    }
+    $('oMaoPill').innerHTML=pill;
+
+    var html='',verdict='';
+    if(gmd>0){
+      var custoKg=diaria/gmd, custoA=custoKg*kgA;
+      html+=linha('Custo por kg ganho',brl(custoKg));
+      html+=linha('Custo da @ produzida',brl(custoA),'total');
+      if(perm>0){
+        var ganho=gmd*perm, arrobas=ganho/kgA, custoPer=diaria*perm;
+        html+=linha('Ganho no período',fmt(ganho,1)+' kg ('+fmt(arrobas,2)+' @)');
+        html+=linha('Custo no período por animal',brl(custoPer));
+        if(precoA>0){
+          var receita=arrobas*precoA, lucro=receita-custoPer;
+          var margem=receita>0?lucro/receita*100:0;
+          html+=linha('Receita das @ produzidas',brl(receita));
+          html+=linha('Lucro por animal',brl(lucro),'total');
+          if(animais>0)html+=linha('Lucro do rebanho',brl(lucro*animais));
+          html+=linha('Margem',fmt(margem,1)+'%');
+        }
+      }
+      if(precoA>0){
+        if(custoA<precoA){verdict='<span class="pill good">Lucro</span> Cada @ produzida custa '+brl(custoA)+' e vale '+brl(precoA)+'. Sobra '+brl(precoA-custoA)+' por @.';}
+        else{verdict='<span class="pill bad">Prejuízo</span> Cada @ produzida custa '+brl(custoA)+', acima do preço de '+brl(precoA)+'. Para empatar, o GMD precisa chegar a '+fmt(diaria*kgA/precoA,2)+' kg/dia com essa diária.';}
+      }
+    } else {
+      html='<p class="note">Preencha o GMD para ver o custo da arroba. Com dias na fazenda e preço da @, aparece o lucro.</p>';
+    }
+    $('prodLines').innerHTML=html;
+    $('verdict').innerHTML=verdict;
+    $('verdict').hidden=!verdict;
+    salvar();
+  }
+
+  function salvar(){
+    try{var d={terraModo:terraModo};CAMPOS.forEach(function(id){d[id]=$(id).value;});localStorage.setItem(CHAVE,JSON.stringify(d));}catch(e){}
+  }
+  function aplicar(d){
+    CAMPOS.forEach(function(id){$(id).value=d[id]!==undefined?d[id]:'';});
+    setModo(d.terraModo==='cabeca'?'cabeca':'total');
+  }
+  function carregar(){
+    var d=null;
+    try{d=JSON.parse(localStorage.getItem(CHAVE)||'null');}catch(e){}
+    if(d){aplicar(d);}else{aplicar(EXEMPLO);avisar('Mostrando o exemplo da aula. Troque pelos números da sua fazenda.');}
+  }
+  function avisar(t){var a=$('aviso');a.textContent=t;a.hidden=!t;}
+
+  CAMPOS.forEach(function(id){$(id).addEventListener('input',function(){avisar('');calcular();});});
+  $('terraTotal').addEventListener('click',function(){setModo('total');calcular();});
+  $('terraCab').addEventListener('click',function(){setModo('cabeca');calcular();});
+  $('btnExemplo').addEventListener('click',function(){aplicar(EXEMPLO);calcular();avisar('Exemplo da aula carregado (GMD, dias e preço da @ são valores de exemplo).');});
+  var confirmar=false;
+  $('btnLimpar').addEventListener('click',function(){
+    if(!confirmar){confirmar=true;this.textContent='Toque de novo para zerar';var b=this;setTimeout(function(){confirmar=false;b.textContent='Zerar campos';},3000);return;}
+    confirmar=false;this.textContent='Zerar campos';
+    var d={terraModo:'total',dias:'30',kgArroba:'30'};aplicar(d);calcular();avisar('Campos zerados.');
+  });
+
+  carregar();
+  calcular();
+})();
+</script>
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
+</script>
+</body>
+</html>
